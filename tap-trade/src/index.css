@@ -174,6 +174,50 @@ body {
   text-shadow: 0 0 8px rgba(255, 59, 141, 0.35);
 }
 
+/* ── Active price row (smooth handoff as quote moves) ── */
+.price-row-active {
+  background: rgba(255, 59, 141, 0.065);
+  box-shadow: inset 0 0 18px rgba(255, 59, 141, 0.06);
+  transition:
+    background 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.price-row-active .cell-label {
+  color: rgba(253, 164, 212, 0.55);
+}
+
+/* Moving grid: faint column guides (8 logical cols ≈ 12.5% each) */
+.multiplier-grid-drift {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(12.5% - 1px),
+    rgba(255, 59, 141, 0.065) calc(12.5% - 1px),
+    rgba(255, 59, 141, 0.065) 12.5%
+  );
+}
+
+.grid-rows-parallax::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 30px,
+    rgba(255, 255, 255, 0.038) 30px,
+    rgba(255, 255, 255, 0.038) 31px
+  );
+  opacity: 0.85;
+}
+
+.grid-rows-parallax > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* ── Time grid: past (left) vs now vs future ── */
 .grid-cell.cell-past {
   background: rgba(255, 255, 255, 0.02);
@@ -183,6 +227,9 @@ body {
 }
 .grid-cell.cell-now {
   box-shadow: inset 0 0 0 1px rgba(255, 59, 141, 0.25);
+  transition:
+    box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.45s ease;
 }
 
 /* Random full-column spotlight (playable columns only) */

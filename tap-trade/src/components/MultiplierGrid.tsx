@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, useMotionValue } from "framer-motion";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { motion, useMotionValue, useSpring } from "framer-motion";
 import type { TokenConfig, Bet, BetSize } from "../lib/types";
 import type { SnakeSegment } from "../hooks/useSnakeTrail";
 import { maxSnakeCol } from "../hooks/useSnakeTrail";
@@ -72,11 +79,47 @@ export function MultiplierGrid({
     };
   }, [maxPlay]);
 
-  const driftX = useMotionValue(0);
+  /** Time → horizontal slide (treadmill); spring smooths frame-to-frame updates */
+  const targetX = useMotionValue(0);
+  const springX = useSpring(targetX, {
+    stiffness: 140,
+    damping: 26,
+    mass: 0.55,
+  });
   useEffect(() => {
     const m = Math.max(0.001, maxPlay);
-    driftX.set(-(snakeHead.colFloat / m) * 26);
-  }, [snakeHead.colFloat, maxPlay, driftX]);
+    const pxPerPhase = 52;
+    targetX.set(-(snakeHead.colFloat / m) * pxPerPhase);
+  }, [snakeHead.colFloat, maxPlay, targetX]);
+
+  /** Price within tick → vertical micro-shift (rows track live quote) */
+  const rowsAreaRef = useRef<HTMLDivElement>(null);
+  const [rowHeightPx, setRowHeightPx] = useState(36);
+  useLayoutEffect(() => {
+    const el = rowsAreaRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.clientHeight / Math.max(1, rows);
+      if (h > 8) setRowHeightPx(h);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [rows]);
+
+  const targetY = useMotionValue(0);
+  const springY = useSpring(targetY, {
+    stiffness: 90,
+    damping: 22,
+    mass: 0.65,
+  });
+  useEffect(() => {
+    const anchor =
+      Math.round(currentPrice / tickSize) * tickSize;
+    const fracTicks = (currentPrice - anchor) / tickSize;
+    targetY.set(-fracTicks * rowHeightPx);
+  }, [currentPrice, tickSize, rowHeightPx, targetY]);
 
   const rowData = useMemo(() => {
     const out: { signedRow: number; absRow: number; price: number }[] = [];
@@ -159,16 +202,16 @@ export function MultiplierGrid({
   const cellW = `${100 / numCols}%`;
 
   return (
-    <div className="h-full flex flex-col select-none overflow-x-hidden">
+    <div className="h-full flex flex-col select-none overflow-hidden">
       <motion.div
-        className="flex-1 flex flex-col min-w-[720px] will-change-transform"
-        style={{ x: driftX }}
+        className="multiplier-grid-drift flex-1 flex flex-col min-w-[720px] will-change-transform"
+        style={{ x: springX, y: springY }}
       >
         <motion.div
           key={snakeHead.floorGlobalCol}
-          initial={{ opacity: 0.88 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0.82, x: 6 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           className="flex h-7 shrink-0 border-b border-[#141c2e]/80"
         >
           <div className="w-[52px] shrink-0" />
@@ -204,7 +247,10 @@ export function MultiplierGrid({
           })}
         </motion.div>
 
-        <div className="flex-1 flex flex-col min-h-0">
+        <div
+          ref={rowsAreaRef}
+          className="flex-1 flex flex-col min-h-0 relative grid-rows-parallax"
+        >
           {rowData.map(({ signedRow, absRow, price }, ri) => {
             const isActive = ri === activeRowIdx;
             const isGap = ri === gridHalfHeight - 1;
@@ -212,15 +258,15 @@ export function MultiplierGrid({
             return (
               <div
                 key={ri}
-                className={`flex-1 flex items-stretch min-h-0 transition-colors duration-300 ${
+                className={`flex-1 flex items-stretch min-h-0 transition-colors duration-500 ease-out ${
                   isGap
                     ? "border-b border-[#ff3b8d]/10"
                     : "border-b border-[#141c2e]"
-                }`}
+                } ${isActive ? "price-row-active" : ""}`}
               >
                 <div
-                  className={`w-[52px] shrink-0 flex items-center justify-end pr-2 transition-colors duration-300 ${
-                    isActive ? "text-zinc-300 font-medium" : "text-zinc-600"
+                  className={`w-[52px] shrink-0 flex items-center justify-end pr-2 transition-colors duration-500 ${
+                    isActive ? "text-[#ff3b8d] font-semibold" : "text-zinc-600"
                   }`}
                 >
                   <span className="text-[11px] font-mono tabular-nums">
