@@ -74,11 +74,12 @@ export function useBets(
 
       const cap = maxSnakeCol(token);
       const floor = h.col;
-      if (targetCol <= floor) return null;
-      if (targetCol > cap) return null;
+      /** Bets only on columns still ahead toward the chart (strictly left / lower index). */
+      if (targetCol >= floor) return null;
+      if (targetCol < 0 || targetCol > cap) return null;
 
       const absRow = Math.abs(row);
-      const stepsAhead = Math.max(1, targetCol - floor);
+      const stepsAhead = Math.max(1, floor - targetCol);
       const mult = calculateMultiplier(
         absRow,
         stepsAhead,
@@ -139,12 +140,13 @@ export function useBets(
 
     const cap = maxSnakeCol(token);
 
-    if (nowCol > prevCol) {
+    /** Head moves right → left: resolve columns stepped into (decreasing index). */
+    if (nowCol < prevCol) {
       const { next, balanceAdd, pnlAdd } = resolveColumnsEntered(
         betsRef.current,
         h,
-        prevCol + 1,
-        nowCol
+        nowCol,
+        prevCol - 1
       );
       setBets(next);
       if (balanceAdd !== 0) setBalance((b) => b + balanceAdd);
@@ -152,18 +154,18 @@ export function useBets(
       return;
     }
 
-    /* Wrapped lap (e.g. last playable → 0) */
+    /* Wrapped lap: shore (low col) → ocean (high col) */
     let next = betsRef.current;
     let balanceAdd = 0;
     let pnlAdd = 0;
-    if (prevCol + 1 <= cap) {
-      const r = resolveColumnsEntered(next, h, prevCol + 1, cap);
+    if (prevCol > 0) {
+      const r = resolveColumnsEntered(next, h, 0, prevCol - 1);
       next = r.next;
       balanceAdd += r.balanceAdd;
       pnlAdd += r.pnlAdd;
     }
-    if (nowCol >= 0) {
-      const r = resolveColumnsEntered(next, h, 0, nowCol);
+    if (nowCol <= cap) {
+      const r = resolveColumnsEntered(next, h, nowCol, cap);
       next = r.next;
       balanceAdd += r.balanceAdd;
       pnlAdd += r.pnlAdd;

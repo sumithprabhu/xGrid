@@ -1,6 +1,6 @@
 import type { TokenConfig, BetSize } from "./types";
 
-/** Wall-clock duration for snake to sweep 0 → gridWidth-1 (treadmill phase). */
+/** Wall-clock duration for one full sweep (right → left, toward chart seam). */
 export const SNAKE_SWEEP_MS = 28_000;
 
 /** Rightmost playable column = gridWidth - 1 - SNAKE_RIGHT_RESERVE */

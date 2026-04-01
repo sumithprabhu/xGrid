@@ -16,8 +16,7 @@ export interface ChartGridSplitProps {
 }
 
 /**
- * Chart-only left column + grid right column so the price arrow ends at the seam
- * (matches `/gridding` layout; arrow lines up with the first grid columns).
+ * Chart left (~35%) + grid right (~65%). LIVE sweeps right → left; col 0 is the chart seam (“shore”).
  */
 export function ChartGridSplit({
   token,
@@ -32,7 +31,7 @@ export function ChartGridSplit({
 }: ChartGridSplitProps) {
   return (
     <div className="absolute inset-0 flex flex-row min-h-0">
-      <div className="relative h-full w-[48%] shrink-0 min-w-0 overflow-visible">
+      <div className="relative h-full w-[35%] shrink-0 min-w-0 overflow-visible">
         <div className="absolute inset-0 z-0 chart-dot-bg" />
         <div className="relative z-[3] h-full w-full min-h-0">
           <PriceChart
@@ -48,7 +47,7 @@ export function ChartGridSplit({
         />
       </div>
 
-      <div className="relative h-full w-[52%] shrink-0 min-w-0 z-10 grid-fade-left border-l border-[#ff3b8d]/[0.08] bg-[#080c14]/40 backdrop-blur-[2px]">
+      <div className="relative h-full w-[65%] shrink-0 min-w-0 z-10 grid-fade-left border-l border-[#ff3b8d]/[0.08] bg-[#080c14]/40 backdrop-blur-[2px]">
         <div className="relative h-full w-full min-h-0">
           <div
             className="grid-gradient-overlay absolute inset-0 z-0 rounded-sm"

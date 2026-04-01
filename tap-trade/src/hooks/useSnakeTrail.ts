@@ -16,7 +16,7 @@ export function effectiveSnakeColumn(colFloat: number, cap: number): number {
 
 export interface SnakeSegment {
   signedRow: number;
-  /** Effective column (see SNAKE_COLUMN_HIT_LAG), capped for reserved tail */
+  /** Effective column (see SNAKE_COLUMN_HIT_LAG); 0 = chart seam, sweep moves toward 0. */
   col: number;
   /** Fractional position [0, gridWidth) — continuous treadmill */
   colFloat: number;
@@ -56,7 +56,9 @@ export function computeSnakeHead(
   const cap = maxSnakeCol(token);
   const msPerCol = SNAKE_SWEEP_MS / w;
   const globalPhase = nowMs / msPerCol;
-  const colFloat = ((globalPhase % w) + w) % w;
+  /** Right → left: seam is col 0 (chart edge); head starts ocean-side and rolls to shore. */
+  const phaseMod = ((globalPhase % w) + w) % w;
+  const colFloat = w - 1 - phaseMod;
   const col = effectiveSnakeColumn(colFloat, cap);
   const floorGlobalCol = Math.floor(globalPhase);
 

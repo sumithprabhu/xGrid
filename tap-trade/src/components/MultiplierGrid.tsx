@@ -191,13 +191,13 @@ export function MultiplierGrid({
   return (
     <div className="h-full flex flex-col select-none overflow-hidden">
       <p className="shrink-0 px-2 py-1 text-center text-[10px] font-medium tracking-wide text-zinc-500 border-b border-[#141c2e]/60 bg-[#080c14]/80">
-        <span className="text-zinc-400">Chart</span>
-        <span className="mx-1.5 text-[#ff3b8d]/90">→</span>
+        <span className="text-zinc-400">LIVE</span>
+        <span className="mx-1.5 text-[#ff3b8d]/90">←</span>
         <span className="text-emerald-400/90">meets</span>
-        <span className="mx-1.5 text-zinc-400">LIVE</span>
+        <span className="mx-1.5 text-zinc-400">chart</span>
         <span className="text-zinc-600">·</span>
         <span className="ml-1.5 text-emerald-500/80">
-          Tap green · board wraps like a cylinder
+          Tap green · wave rolls to the shore
         </span>
       </p>
       <div className="grid-cylinder-shell flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col">
@@ -208,24 +208,24 @@ export function MultiplierGrid({
           <div className="grid-cylinder-inner multiplier-grid-drift flex h-full min-h-0 flex-col min-w-[720px]">
         <motion.div
           key={snakeHead.floorGlobalCol}
-          initial={{ opacity: 0.82, x: 6 }}
+          initial={{ opacity: 0.82, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           className="flex h-10 shrink-0 border-b border-[#1e293b] bg-[#0c101c]/95"
         >
           <div className="w-[52px] shrink-0 border-r border-[#1e293b]/90 relative z-[2] bg-[#0c101c]/95" />
           {Array.from({ length: numCols }, (_, ci) => {
-            const isPast = ci < headFloor;
+            const isPast = ci > headFloor;
             const isNow = ci === headFloor;
             const reserved = ci > maxPlay;
-            const canBetHere = !reserved && ci > headFloor;
+            const canBetHere = !reserved && ci < headFloor;
             const idx =
               (snakeHead.floorGlobalCol + ci) %
               GRID_TIME_HORIZONS_SEC.length;
             const sec = GRID_TIME_HORIZONS_SEC[idx] ?? 0;
             const label = formatHorizonLabel(sec);
-            const firstPlay = canBetHere && ci === headFloor + 1;
-            const lastPlay = canBetHere && ci === maxPlay;
+            const firstPlay = canBetHere && ci === headFloor - 1;
+            const lastPlay = canBetHere && ci === 0;
             return (
               <div
                 key={`${snakeHead.floorGlobalCol}-${ci}`}
@@ -238,8 +238,8 @@ export function MultiplierGrid({
                       : reserved
                         ? "grid-header-time--off"
                         : "grid-header-time--play"
-                } ${firstPlay ? "grid-header-time--play-start" : ""} ${
-                  lastPlay ? "grid-header-time--play-end" : ""
+                } ${firstPlay ? "grid-header-time--play-end" : ""} ${
+                  lastPlay ? "grid-header-time--play-start" : ""
                 } ${spotlightCol === ci ? "grid-header-col-spotlight" : ""}`}
                 title={
                   reserved
@@ -288,10 +288,10 @@ export function MultiplierGrid({
                 </div>
 
                 {Array.from({ length: numCols }, (_, ci) => {
-                  const isPast = ci < headFloor;
+                  const isPast = ci > headFloor;
                   const isNow = ci === headFloor;
                   const reserved = ci > maxPlay;
-                  const canBet = !reserved && ci > headFloor;
+                  const canBet = !reserved && ci < headFloor;
 
                   /** Distance from snake column so multipliers stay visible in past/now/future (not just "—"). */
                   const timeBucketsForLabel = Math.max(1, Math.abs(ci - headFloor));
@@ -312,8 +312,8 @@ export function MultiplierGrid({
                   const isHitFlash = snakeKey === hitKey;
                   const isColumnSpotlight =
                     spotlightCol !== null && spotlightCol === ci;
-                  const firstPlay = canBet && ci === headFloor + 1;
-                  const lastPlay = canBet && ci === maxPlay;
+                  const firstPlay = canBet && ci === headFloor - 1;
+                  const lastPlay = canBet && ci === 0;
 
                   return (
                     <motion.button
@@ -329,8 +329,10 @@ export function MultiplierGrid({
                           : reserved
                             ? "Column closed"
                             : isNow
-                              ? "Snake column"
-                              : "Past column"
+                              ? "LIVE column"
+                              : isPast
+                                ? "Past column"
+                                : "Column"
                       }
                       whileHover={
                         canBet
@@ -358,8 +360,8 @@ export function MultiplierGrid({
                         ci <= maxPlay && !reserved
                           ? "cell-snake-zone"
                           : ""
-                      } ${firstPlay ? "cell-play-band-start" : ""} ${
-                        lastPlay ? "cell-play-band-end" : ""
+                      } ${firstPlay ? "cell-play-band-end" : ""} ${
+                        lastPlay ? "cell-play-band-start" : ""
                       } ${
                         state === "active"
                           ? "has-bet"
