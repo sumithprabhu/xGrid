@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { Link, useLocation, useSearchParams } from "wouter";
 import { useAccount, useSwitchChain } from "wagmi";
 import { appChain } from "../lib/wagmiConfig";
+import { NavAuthControls } from "./NavAuthControls";
 
 const NEON = "#ff3b8d";
 
@@ -41,6 +42,7 @@ export function LoginPage() {
             xGrid
           </span>
         </Link>
+        <NavAuthControls hideGuestLogin />
       </header>
 
       <main className="max-w-md mx-auto px-5 py-14">

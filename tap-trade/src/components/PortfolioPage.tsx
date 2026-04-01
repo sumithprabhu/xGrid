@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { ArrowRight, ArrowRightLeft, ChevronRight } from "lucide-react";
+import { NavAuthControls } from "./NavAuthControls";
 
 const NEON = "#ff3b8d";
 
@@ -247,20 +248,23 @@ export function PortfolioPage() {
             xGrid
           </span>
         </Link>
-        <Link href="/gridding">
-          <span
-            className="flex items-center gap-2 rounded-full px-5 py-2 text-[14px] font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer"
-            style={{
-              background: "rgba(255,59,141,0.12)",
-              border: "1.5px solid rgba(255,59,141,0.4)",
-              color: "#ff3b8d",
-              boxShadow: "0 0 20px rgba(255,59,141,0.1)",
-            }}
-          >
-            Start Gridding
-            <ArrowRight size={15} />
-          </span>
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <Link href="/gridding">
+            <span
+              className="flex items-center gap-2 rounded-full px-4 sm:px-5 py-2 text-[13px] sm:text-[14px] font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              style={{
+                background: "rgba(255,59,141,0.12)",
+                border: "1.5px solid rgba(255,59,141,0.4)",
+                color: "#ff3b8d",
+                boxShadow: "0 0 20px rgba(255,59,141,0.1)",
+              }}
+            >
+              Start Gridding
+              <ArrowRight size={15} />
+            </span>
+          </Link>
+          <NavAuthControls />
+        </div>
       </header>
 
       <main className="w-[75vw] max-w-[min(75vw,100%)] mx-auto px-3 sm:px-5 py-8 sm:py-10 box-border">

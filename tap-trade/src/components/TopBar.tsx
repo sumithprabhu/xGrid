@@ -2,6 +2,13 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { TokenConfig } from "../lib/types";
 import { formatUsd, formatPrice } from "../lib/format";
+import { NavAuthControls } from "./NavAuthControls";
+
+/** Shared size for balance + wallet pills; balance keeps strong border, wallet lighter */
+const GRID_NAV_PILL_CORE =
+  "h-10 w-[11.5rem] sm:w-[12.5rem] shrink-0 flex items-center justify-center gap-1.5 rounded-full bg-[#0d1220] px-2 shadow-[0_0_20px_rgba(255,59,141,0.12)] min-w-0";
+const GRID_NAV_PILL_BALANCE = `${GRID_NAV_PILL_CORE} border-2 border-[#ff3b8d]`;
+const GRID_NAV_PILL_WALLET = `${GRID_NAV_PILL_CORE} border-2 border-[#ff3b8d]/30`;
 
 interface Props {
   tokens: TokenConfig[];
@@ -76,10 +83,16 @@ export function TopBar({
         </p>
       </div>
 
-      <div className="shrink-0 rounded-full border-2 border-[#ff3b8d] bg-[#0d1220] px-5 py-2 shadow-[0_0_20px_rgba(255,59,141,0.12)]">
-        <span className="text-[13px] font-medium text-[#ff3b8d] font-mono tabular-nums">
-          Balance: {formatUsd(balance)}
-        </span>
+      <div className="shrink-0 flex items-center gap-2 sm:gap-2.5">
+        <div
+          className={GRID_NAV_PILL_BALANCE}
+          title={`Balance: ${formatUsd(balance)}`}
+        >
+          <span className="text-[12px] sm:text-[13px] font-medium text-[#ff3b8d] font-mono tabular-nums truncate text-center w-full min-w-0">
+            Balance: {formatUsd(balance)}
+          </span>
+        </div>
+        <NavAuthControls gridPillClassName={GRID_NAV_PILL_WALLET} />
       </div>
     </header>
   );

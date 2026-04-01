@@ -4,6 +4,7 @@ import { ArrowRight, TrendingUp, Zap, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import { TOKENS } from "../lib/constants";
 import { LandingGriddingPreview } from "./LandingGriddingPreview";
+import { NavAuthControls } from "./NavAuthControls";
 
 interface Props {
   onEnter: () => void;
@@ -258,10 +259,10 @@ export function LandingPage({ onEnter }: Props) {
               </button>
             </div>
 
-            <div className="col-start-2 md:col-start-3 flex items-center justify-self-end min-w-0">
+            <div className="col-start-2 md:col-start-3 flex items-center justify-self-end gap-2 sm:gap-3 min-w-0">
               <button
                 onClick={handleEnter}
-                className="flex items-center gap-2 rounded-full px-5 py-2 text-[14px] font-semibold transition-all hover:scale-105 active:scale-95"
+                className="flex items-center gap-2 rounded-full px-4 sm:px-5 py-2 text-[13px] sm:text-[14px] font-semibold transition-all hover:scale-105 active:scale-95 shrink-0"
                 style={{
                   background: "rgba(255,59,141,0.12)",
                   border: "1.5px solid rgba(255,59,141,0.4)",
@@ -272,6 +273,7 @@ export function LandingPage({ onEnter }: Props) {
                 Start Gridding
                 <ArrowRight size={15} />
               </button>
+              <NavAuthControls className="shrink-0" />
             </div>
           </nav>
 
