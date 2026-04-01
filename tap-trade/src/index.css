@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: "Outfit", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+*, *::before, *::after { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
+body {
+  margin: 0;
+  background: #000;
+  color: #fff;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Bet tile enter ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ── Grid cells ── */
+
+.grid-cell {
+  transition: background 100ms ease;
+  background: transparent;
+}
+.grid-cell:hover {
+  background: rgba(16, 185, 129, 0.1);
+}
+.grid-cell:active {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+/* ── Active bet — solid dark green box, clearly visible ── */
+.grid-cell.has-bet {
+  background: rgba(16, 185, 129, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.25);
+}
+.grid-cell.has-bet .cell-label {
+  color: #6ee7b7;
+  font-weight: 600;
+}
+.grid-cell.has-bet .dot {
+  background: rgba(16, 185, 129, 0.5);
+}
+
+/* ── Won — bright green pulse then settle ── */
+.grid-cell.cell-won {
+  animation: cellWin 1.2s ease-out forwards;
+}
+@keyframes cellWin {
+  0%   { background: rgba(16, 185, 129, 0.5); box-shadow: inset 0 0 0 2px rgba(16, 185, 129, 0.6), 0 0 20px rgba(16, 185, 129, 0.3); }
+  40%  { background: rgba(16, 185, 129, 0.3); box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.4), 0 0 10px rgba(16, 185, 129, 0.15); }
+  100% { background: rgba(16, 185, 129, 0.08); box-shadow: none; }
+}
+.grid-cell.cell-won .cell-label {
+  color: #34d399;
+}
+
+/* ── Lost — red flash then fade ── */
+.grid-cell.cell-lost {
+  animation: cellLose 1s ease-out forwards;
+}
+@keyframes cellLose {
+  0%   { background: rgba(239, 68, 68, 0.3); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.4); }
+  30%  { background: rgba(239, 68, 68, 0.15); }
+  100% { background: transparent; box-shadow: none; }
+}
+.grid-cell.cell-lost .cell-label {
+  animation: labelFade 1s ease-out forwards;
+}
+@keyframes labelFade {
+  0%   { color: rgba(239, 68, 68, 0.7); }
+  100% { color: rgba(16, 185, 129, 0.25); }
+}
+
+/* ── Click flash ── */
+.grid-cell.cell-flash {
+  animation: cellFlash 0.35s ease-out;
+}
+@keyframes cellFlash {
+  0%   { background: rgba(16, 185, 129, 0.4); }
+  100% { background: rgba(16, 185, 129, 0.18); }
+}
+
+/* ── Corner dots ── */
+.dot {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  transition: background 100ms ease;
+}
+.dot-tl { top: 3px; left: 3px; }
+.dot-tr { top: 3px; right: 3px; }
+.dot-bl { bottom: 3px; left: 3px; }
+.dot-br { bottom: 3px; right: 3px; }
+
+.grid-cell:hover .dot { background: rgba(16, 185, 129, 0.35); }
+
+/* ── Multiplier text ── */
+.cell-label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(16, 185, 129, 0.25);
+  transition: color 100ms ease, transform 100ms ease;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.grid-cell:hover .cell-label {
+  color: rgba(16, 185, 129, 0.85);
+  transform: scale(1.08);
+}
+
+/* ── Inline bet tile inside grid cell ── */
+.bet-inline {
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+}
+.bet-amount {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1.2;
+}
+.bet-mult {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(16, 185, 129, 0.6);
+  line-height: 1.2;
+}
+.cell-won .bet-amount { color: #34d399; }
+.cell-won .bet-mult { color: rgba(16, 185, 129, 0.8); }
+.cell-lost .bet-amount { color: #f87171; text-decoration: line-through; }
+.cell-lost .bet-mult { color: rgba(239, 68, 68, 0.5); }
+
+/* ── Active price row — line is crossing through this row ── */
+.price-row-active {
+  background: rgba(16, 185, 129, 0.04);
+  transition: background 300ms ease;
+}
+.price-row-active .cell-label {
+  color: rgba(16, 185, 129, 0.45);
+}
+.price-row-active .dot {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+/* Cells in the active row get a subtle glow when the line passes through */
+.row-glow {
+  box-shadow: inset 0 0 12px rgba(16, 185, 129, 0.05);
+  transition: box-shadow 300ms ease;
+}
+
+/* ── Left-edge fade ── */
+.grid-fade-left {
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.3) 12%, black 28%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.3) 12%, black 28%);
+}
