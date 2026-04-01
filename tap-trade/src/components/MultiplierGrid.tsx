@@ -56,7 +56,7 @@ export function MultiplierGrid({
 
   useEffect(() => {
     let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout>;
+    let timeoutId: number;
 
     function scheduleNext() {
       const delay = 1800 + Math.floor(Math.random() * 1600);

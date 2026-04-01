@@ -211,14 +211,54 @@ export function LandingPage({ onEnter }: Props) {
           {/* First screen: nav + hero (copy + stats + grid) + ticker — page scrolls below */}
           <div className="min-h-dvh flex flex-col">
           {/* ── Nav ──────────────────────────────────────────────────────── */}
-          <nav className="shrink-0 z-50 flex items-center justify-between pl-5 pr-6 sm:pl-7 py-4 border-b border-[#ff3b8d]/10 backdrop-blur-sm"
+          <nav
+            className="shrink-0 z-50 grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-3 pl-5 pr-6 sm:pl-7 py-4 border-b border-[#ff3b8d]/10 backdrop-blur-sm"
             style={{ background: "rgba(10,14,26,0.85)" }}
           >
-            <span className="font-logo text-[1.65rem] text-[#ff3b8d] drop-shadow-[0_0_18px_rgba(255,59,141,0.45)] ml-1 sm:ml-2">
+            <span className="font-logo text-[1.65rem] text-[#ff3b8d] drop-shadow-[0_0_18px_rgba(255,59,141,0.45)] ml-1 sm:ml-2 justify-self-start min-w-0">
               xGrid
             </span>
 
-            <div className="flex items-center gap-3">
+            {/* Center: pink links + vertical | separators (md+) */}
+            <div
+              className="hidden md:flex md:col-start-2 items-center justify-center gap-2 lg:gap-3 text-[13px] lg:text-[14px] font-semibold min-w-0 max-w-full font-mono"
+              style={{ color: "#ff3b8d" }}
+            >
+              <button
+                type="button"
+                className="hover:opacity-80 transition-opacity cursor-pointer whitespace-nowrap shrink-0 font-sans font-semibold"
+              >
+                How it works?
+              </button>
+              <span
+                className="text-[1.35rem] lg:text-[1.5rem] font-light leading-none px-0.5 select-none opacity-60 shrink-0"
+                style={{ color: "#ff3b8d" }}
+                aria-hidden
+              >
+                |
+              </span>
+              <button
+                type="button"
+                className="hover:opacity-80 transition-opacity cursor-pointer whitespace-nowrap shrink-0 font-sans font-semibold"
+              >
+                Markets
+              </button>
+              <span
+                className="text-[1.35rem] lg:text-[1.5rem] font-light leading-none px-0.5 select-none opacity-60 shrink-0"
+                style={{ color: "#ff3b8d" }}
+                aria-hidden
+              >
+                |
+              </span>
+              <button
+                type="button"
+                className="hover:opacity-80 transition-opacity cursor-pointer whitespace-nowrap shrink-0 font-sans font-semibold"
+              >
+                Documentation
+              </button>
+            </div>
+
+            <div className="col-start-2 md:col-start-3 flex items-center justify-self-end min-w-0">
               <button
                 onClick={handleEnter}
                 className="flex items-center gap-2 rounded-full px-5 py-2 text-[14px] font-semibold transition-all hover:scale-105 active:scale-95"
@@ -229,7 +269,7 @@ export function LandingPage({ onEnter }: Props) {
                   boxShadow: "0 0 20px rgba(255,59,141,0.1)",
                 }}
               >
-                Launch App
+                Start Gridding
                 <ArrowRight size={15} />
               </button>
             </div>
@@ -291,20 +331,20 @@ export function LandingPage({ onEnter }: Props) {
                           "0 0 32px rgba(255,59,141,0.35), 0 4px 20px rgba(0,0,0,0.4)",
                       }}
                     >
-                      Start Trading
+                      Start Gridding
                       <ArrowRight size={17} />
                     </button>
 
-                    <a
-                      href="https://github.com"
-                      className="flex items-center gap-2 rounded-full px-7 py-3 font-semibold text-[15px] text-zinc-300 transition-all hover:text-white"
+                    <button
+                      type="button"
+                      className="flex items-center gap-2 rounded-full px-7 py-3 font-semibold text-[15px] text-zinc-300 transition-all hover:text-white cursor-pointer"
                       style={{
                         border: "1.5px solid rgba(255,255,255,0.1)",
                         background: "rgba(255,255,255,0.03)",
                       }}
                     >
-                      View Contracts
-                    </a>
+                      How to play?
+                    </button>
                   </div>
 
                   {/* quick stats */}
