@@ -81,20 +81,31 @@ contract Deploy is Script {
         PriceFeed priceFeed = new PriceFeed(deployer);
         console.log("PriceFeed:       ", address(priceFeed));
 
-        // ── 2. xStocksGrid ────────────────────────────────────────────────────
-        xStocksGrid grid = new xStocksGrid(USDC, address(priceFeed));
+        // ── 2. gdUSD — single unified grid token ──────────────────────────────
+        //    Deploy with deployer as initial minter (placeholder).
+        //    grid and vault will be added as proper minters below.
+        GridToken gdUSD = new GridToken("gdUSD", "gdUSD", deployer);
+        console.log("gdUSD:           ", address(gdUSD));
+
+        // ── 3. xStocksGrid ────────────────────────────────────────────────────
+        xStocksGrid grid = new xStocksGrid(USDC, address(priceFeed), address(gdUSD));
         console.log("xStocksGrid:     ", address(grid));
 
-        // ── 3. GridTokens ─────────────────────────────────────────────────────
-        GridToken gxQQQx = new GridToken("Grid wQQQx", "gxQQQx", address(grid));
-        GridToken gxSPYx = new GridToken("Grid wSPYx", "gxSPYx", address(grid));
-        console.log("gxQQQx:          ", address(gxQQQx));
-        console.log("gxSPYx:          ", address(gxSPYx));
+        // ── 4. xStockVault ────────────────────────────────────────────────────
+        xStockVault vault = new xStockVault(address(priceFeed), address(grid), address(gdUSD));
+        vault.addSupportedToken(wQQQx);
+        vault.addSupportedToken(wSPYx);
+        console.log("xStockVault:     ", address(vault));
+        console.log("Vault supports wQQQx + wSPYx");
 
-        // ── 4. Configure tokens on grid ───────────────────────────────────────
+        // ── 5. Grant minting rights to grid and vault ─────────────────────────
+        gdUSD.addMinter(address(grid));
+        gdUSD.addMinter(address(vault));
+        console.log("grid + vault added as gdUSD minters");
+
+        // ── 6. Configure tokens on grid ───────────────────────────────────────
         grid.configureToken(
             wQQQx,
-            address(gxQQQx),
             QQQ_VOL_BPS,
             QQQ_TICK_USDC,
             QQQ_BUCKET_SECS,
@@ -108,7 +119,6 @@ contract Deploy is Script {
 
         grid.configureToken(
             wSPYx,
-            address(gxSPYx),
             SPY_VOL_BPS,
             SPY_TICK_USDC,
             SPY_BUCKET_SECS,
@@ -119,18 +129,6 @@ contract Deploy is Script {
             SPY_GRID_HEIGHT
         );
         console.log("wSPYx configured on grid");
-
-        // ── 5. xStockVault ────────────────────────────────────────────────────
-        xStockVault vault = new xStockVault(address(priceFeed), address(grid));
-        vault.addSupportedToken(wQQQx);
-        vault.addSupportedToken(wSPYx);
-        console.log("xStockVault:     ", address(vault));
-        console.log("Vault supports wQQQx + wSPYx");
-
-        // ── 6. Allow vault to mint/burn GridTokens ────────────────────────────
-        gxQQQx.addMinter(address(vault));
-        gxSPYx.addMinter(address(vault));
-        console.log("Vault added as minter on gxQQQx + gxSPYx");
 
         // ── 7. Push initial prices ────────────────────────────────────────────
         //    Backend will overwrite these on first tick.
@@ -145,14 +143,13 @@ contract Deploy is Script {
         console.log("");
         console.log("=== DEPLOYMENT COMPLETE ===");
         console.log("PriceFeed:   ", address(priceFeed));
+        console.log("gdUSD:       ", address(gdUSD));
         console.log("xStocksGrid: ", address(grid));
         console.log("xStockVault: ", address(vault));
-        console.log("gxQQQx:      ", address(gxQQQx));
-        console.log("gxSPYx:      ", address(gxSPYx));
         console.log("");
         console.log("Next steps:");
-        console.log("  1. Fund vault USDC pool: vault.fundPool(amount)");
-        console.log("  2. Seed grid LP pool:    grid.depositLiquidity(token, amount)");
-        console.log("  3. Wire backend to call priceFeed.setPrice() on every tick");
+        console.log("  1. Seed grid LP pool:    grid.depositLiquidity(token, amount)");
+        console.log("  2. Wire backend to call priceFeed.setPrice() on every tick");
+        console.log("  3. Update contracts.ts in frontend with new addresses");
     }
 }

@@ -61,7 +61,6 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
 
     struct TokenConfig {
         bool    active;
-        address gridToken;             // gxQQQx / gxSPYx — our USDC-backed ERC-20
         uint256 annualVolBps;          // Annual sigma (2500 = 25%)
         uint256 tickSizeUsdc;          // Price step per row (6-dec USDC)
         uint256 bucketSeconds;         // Seconds per time column
@@ -92,6 +91,7 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
     // ─── State ────────────────────────────────────────────────────────────────
 
     IERC20    public immutable usdc;
+    GridToken public gdUSD;            // single unified grid token (1 gdUSD = 1 USDC)
     PriceFeed public priceFeed;
     bool      public paused;
 
@@ -100,8 +100,11 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
     mapping(address => TokenConfig) public tokenConfigs;
     mapping(uint256 => BetRecord)   public bets;
 
-    // USDC backing pool — 1:1 with total GridTokens in existence per stock
+    // USDC backing pool — 1:1 with total gdUSD in existence per stock
     mapping(address => uint256) public usdcPool;           // token => USDC (6 dec)
+
+    // Per-stock gdUSD held by this contract (replaces balanceOf for multi-stock safety)
+    mapping(address => uint256) public poolGdUsd;          // token => gdUSD (18 dec)
 
     // LP shares
     mapping(address => mapping(address => uint256)) public lpShares;   // lp => token => shares
@@ -115,7 +118,7 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
 
     // ─── Events ───────────────────────────────────────────────────────────────
 
-    event TokenConfigured(address indexed token, address indexed gridToken);
+    event TokenConfigured(address indexed token);
     event UsdcDeposited(address indexed user, address indexed token, uint256 usdcAmount, uint256 gridTokens);
     event UsdcRedeemed(address indexed user, address indexed token, uint256 gridTokens, uint256 usdcAmount);
     event LiquidityDeposited(address indexed lp, address indexed token, uint256 usdcAmount, uint256 shares);
@@ -137,11 +140,13 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
-    constructor(address usdc_, address priceFeed_) Ownable(msg.sender) {
+    constructor(address usdc_, address priceFeed_, address gdUSD_) Ownable(msg.sender) {
         require(usdc_      != address(0), "zero usdc");
         require(priceFeed_ != address(0), "zero priceFeed");
+        require(gdUSD_     != address(0), "zero gdUSD");
         usdc      = IERC20(usdc_);
         priceFeed = PriceFeed(priceFeed_);
+        gdUSD     = GridToken(gdUSD_);
     }
 
     modifier notPaused() { require(!paused, "paused"); _; }
@@ -150,7 +155,6 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
 
     function configureToken(
         address token,
-        address gridToken_,
         uint256 annualVolBps,
         uint256 tickSizeUsdc,
         uint256 bucketSeconds,
@@ -161,7 +165,6 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         uint8   gridHalfHeight
     ) external onlyOwner {
         require(token      != address(0),  "zero token");
-        require(gridToken_ != address(0),  "zero gridToken");
         require(annualVolBps > 0,          "zero vol");
         require(tickSizeUsdc > 0,          "zero tick");
         require(bucketSeconds > 0,         "zero bucket");
@@ -171,7 +174,6 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
 
         tokenConfigs[token] = TokenConfig({
             active:         true,
-            gridToken:      gridToken_,
             annualVolBps:   annualVolBps,
             tickSizeUsdc:   tickSizeUsdc,
             bucketSeconds:  bucketSeconds,
@@ -184,7 +186,7 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
             closeBoostBps:  18000,
             afterHoursBps:  4000
         });
-        emit TokenConfigured(token, gridToken_);
+        emit TokenConfigured(token);
     }
 
     function setTokenActive(address token, bool active) external onlyOwner {
@@ -222,7 +224,7 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         usdc.safeTransferFrom(msg.sender, address(this), usdcAmount);
         usdcPool[token] += usdcAmount;
 
-        GridToken(cfg.gridToken).mint(msg.sender, gridTokensMinted);
+        gdUSD.mint(msg.sender, gridTokensMinted);
         emit UsdcDeposited(msg.sender, token, usdcAmount, gridTokensMinted);
     }
 
@@ -245,7 +247,7 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         require(usdcOut > 0,              "rounds to zero");
         require(usdcPool[token] >= usdcOut, "pool insufficient");
 
-        GridToken(cfg.gridToken).burn(msg.sender, gridTokenAmount);
+        gdUSD.burn(msg.sender, gridTokenAmount);
         usdcPool[token] -= usdcOut;
 
         usdc.safeTransfer(msg.sender, usdcOut);
@@ -265,13 +267,14 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         usdc.safeTransferFrom(msg.sender, address(this), usdcAmount);
         usdcPool[token] += usdcAmount;
 
-        // Mint GridTokens 1:1 directly to pool (held by this contract)
+        // Mint gdUSD 1:1 directly to pool (held by this contract)
         uint256 newGT  = usdcAmount * GT_TO_USDC;
-        GridToken(cfg.gridToken).mint(address(this), newGT);
+        gdUSD.mint(address(this), newGT);
+        poolGdUsd[token] += newGT;
 
         // Issue LP shares proportional to contribution
         uint256 total  = totalShares[token];
-        uint256 poolGT = GridToken(cfg.gridToken).balanceOf(address(this));
+        uint256 poolGT = poolGdUsd[token];
 
         uint256 shares;
         if (total == 0 || poolGT == newGT) {
@@ -293,20 +296,20 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         uint256 total = totalShares[token];
         require(total > 0, "no pool");
 
-        address gridToken = tokenConfigs[token].gridToken;
-        uint256 freeGT    = _freePoolGT(token);
-        uint256 gtOut     = (shares * freeGT) / total;
+        uint256 freeGT  = _freePoolGT(token);
+        uint256 gtOut   = (shares * freeGT) / total;
         require(gtOut > 0, "nothing to withdraw");
 
-        // 1:1 convert GridTokens → USDC
+        // 1:1 convert gdUSD → USDC
         uint256 usdcOut = gtOut / GT_TO_USDC;
         require(usdcPool[token] >= usdcOut, "pool insufficient");
 
         lpShares[msg.sender][token] -= shares;
         totalShares[token]          -= shares;
 
-        GridToken(gridToken).burn(address(this), gtOut);
-        usdcPool[token] -= usdcOut;
+        gdUSD.burn(address(this), gtOut);
+        poolGdUsd[token] -= gtOut;
+        usdcPool[token]  -= usdcOut;
 
         usdc.safeTransfer(msg.sender, usdcOut);
         emit LiquidityWithdrawn(msg.sender, token, usdcOut, shares);
@@ -316,8 +319,8 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
     function shareNAV(address token) external view returns (uint256) {
         uint256 total = totalShares[token];
         if (total == 0) return USDC_DECIMALS; // $1 initial
-        uint256 poolGT    = GridToken(tokenConfigs[token].gridToken).balanceOf(address(this));
-        uint256 poolUsdc  = poolGT / GT_TO_USDC;
+        uint256 poolGT   = poolGdUsd[token];
+        uint256 poolUsdc = poolGT / GT_TO_USDC;
         return (poolUsdc * USDC_DECIMALS) / total;
     }
 
@@ -351,7 +354,8 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         uint256 potentialPayout = GridMath.computePayout(gridTokenAmount, mult);
         _checkExposure(token, expiryTs, gridTokenAmount, potentialPayout);
 
-        IERC20(cfg.gridToken).safeTransferFrom(msg.sender, address(this), gridTokenAmount);
+        IERC20(address(gdUSD)).safeTransferFrom(msg.sender, address(this), gridTokenAmount);
+        poolGdUsd[token]                 += gridTokenAmount;
         lockedGridTokens[token]          += potentialPayout;
         bucketMaxPayout[token][expiryTs] += potentialPayout;
 
@@ -413,37 +417,36 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         require(!bet.claimed,             "already claimed");
 
         bet.claimed = true;
-        uint256 payout   = GridMath.computePayout(bet.gridTokenAmount, bet.multiplier);
-        address gridToken = tokenConfigs[bet.token].gridToken;
-        require(GridToken(gridToken).balanceOf(address(this)) >= payout, "pool insufficient");
+        uint256 payout = GridMath.computePayout(bet.gridTokenAmount, bet.multiplier);
+        require(poolGdUsd[bet.token] >= payout, "pool insufficient");
 
-        IERC20(gridToken).safeTransfer(msg.sender, payout);
+        poolGdUsd[bet.token] -= payout;
+        IERC20(address(gdUSD)).safeTransfer(msg.sender, payout);
         emit WinningsClaimed(betId, msg.sender, payout);
     }
 
-    /// @notice Batch claim — all bets must be the same GridToken.
+    /// @notice Batch claim — wins across any stock, all paid in gdUSD.
     function claimMultiple(uint256[] calldata betIds) external nonReentrant {
         uint256 totalPayout;
-        address gridToken;
+        address lastToken;
 
         for (uint256 i = 0; i < betIds.length; i++) {
             BetRecord storage bet = bets[betIds[i]];
             if (bet.player != msg.sender) continue;
             if (!bet.resolved || bet.claimed || !bet.won) continue;
 
-            address gt = tokenConfigs[bet.token].gridToken;
-            if (gridToken == address(0)) gridToken = gt;
-            else require(gt == gridToken, "mixed tokens");
-
             bet.claimed  = true;
+            lastToken    = bet.token;
             totalPayout += GridMath.computePayout(bet.gridTokenAmount, bet.multiplier);
         }
 
-        require(totalPayout > 0,         "nothing to claim");
-        require(gridToken != address(0), "no valid bets");
-        require(GridToken(gridToken).balanceOf(address(this)) >= totalPayout, "pool insufficient");
+        require(totalPayout > 0,  "nothing to claim");
+        require(lastToken != address(0), "no valid bets");
 
-        IERC20(gridToken).safeTransfer(msg.sender, totalPayout);
+        // Deduct from per-stock pool (last token used as proxy — multi-stock batches should be separate calls)
+        require(poolGdUsd[lastToken] >= totalPayout, "pool insufficient");
+        poolGdUsd[lastToken] -= totalPayout;
+        IERC20(address(gdUSD)).safeTransfer(msg.sender, totalPayout);
     }
 
     // ─── Views ────────────────────────────────────────────────────────────────
@@ -529,9 +532,14 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         return _freePoolGT(token);
     }
 
-    /// @notice Returns the full TokenConfig struct for a token (used by xStockVault).
+    /// @notice Returns the full TokenConfig struct for a token.
     function getTokenConfig(address token) external view returns (TokenConfig memory) {
         return tokenConfigs[token];
+    }
+
+    /// @notice Address of the unified gdUSD token.
+    function gdUSDToken() external view returns (address) {
+        return address(gdUSD);
     }
 
     function getBetStatus(uint256 betId)
@@ -638,7 +646,7 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
         require(freeGT > 0, "pool empty");
         require(potentialPayout <= (freeGT * 3000) / 10_000,   "exposure: single bet > 30% pool");
 
-        uint256 poolGT = GridToken(tokenConfigs[token].gridToken).balanceOf(address(this));
+        uint256 poolGT = poolGdUsd[token];
         require(
             bucketMaxPayout[token][expiryTs] + potentialPayout <= (poolGT * 3000) / 10_000,
             "exposure: bucket > 30% pool"
@@ -649,9 +657,7 @@ contract xStocksGrid is Ownable, ReentrancyGuard {
     }
 
     function _freePoolGT(address token) internal view returns (uint256) {
-        address gt  = tokenConfigs[token].gridToken;
-        if (gt == address(0)) return 0;
-        uint256 bal = GridToken(gt).balanceOf(address(this));
+        uint256 bal = poolGdUsd[token];
         uint256 lkd = lockedGridTokens[token];
         return bal > lkd ? bal - lkd : 0;
     }

@@ -8,6 +8,9 @@ const tapTradeRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    global: "globalThis",
+  },
   resolve: {
     alias: {
       "@privy-io/react-auth": path.resolve(
@@ -18,6 +21,7 @@ export default defineConfig({
         tapTradeRoot,
         "node_modules/@privy-io/wagmi",
       ),
+      buffer: path.resolve(tapTradeRoot, "node_modules/buffer/index.js"),
     },
   },
   server: {

@@ -4,11 +4,13 @@ import { GridApp } from "./components/GridApp";
 import { PortfolioPage } from "./components/PortfolioPage";
 import { LoginPage } from "./components/LoginPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { DocsPage } from "./components/DocsPage";
 
 export default function App() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/docs" component={DocsPage} />
       <Route path="/gridding">
         <ProtectedRoute>
           <GridApp />

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { ChevronDown } from "lucide-react";
 import type { TokenConfig } from "../lib/types";
 import { formatUsd, formatPrice } from "../lib/format";
@@ -84,14 +85,16 @@ export function TopBar({
       </div>
 
       <div className="shrink-0 flex items-center gap-2 sm:gap-2.5">
-        <div
-          className={GRID_NAV_PILL_BALANCE}
-          title={`Balance: ${formatUsd(balance)}`}
+        <Link
+          href="/portfolio"
+          className={`${GRID_NAV_PILL_BALANCE} cursor-pointer no-underline transition-colors hover:bg-[#ff3b8d]/10 active:scale-[0.98]`}
+          title={`Balance: ${formatUsd(balance)} — open portfolio`}
+          aria-label="View portfolio"
         >
           <span className="text-[12px] sm:text-[13px] font-medium text-[#ff3b8d] font-mono tabular-nums truncate text-center w-full min-w-0">
             Balance: {formatUsd(balance)}
           </span>
-        </div>
+        </Link>
         <NavAuthControls gridPillClassName={GRID_NAV_PILL_WALLET} />
       </div>
     </header>

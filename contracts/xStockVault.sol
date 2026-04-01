@@ -69,7 +69,8 @@ contract xStockVault is Ownable, ReentrancyGuard {
     // ─── State ────────────────────────────────────────────────────────────────
 
     PriceFeed    public priceFeed;
-    xStocksGrid  public grid;      // to look up GridToken address per stock
+    GridToken    public gdUSD;     // single unified grid token
+    xStocksGrid  public grid;      // to verify token is active on the grid
 
     mapping(address => bool)    public supportedTokens;
 
@@ -102,11 +103,13 @@ contract xStockVault is Ownable, ReentrancyGuard {
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
-    constructor(address priceFeed_, address grid_) Ownable(msg.sender) {
+    constructor(address priceFeed_, address grid_, address gdUSD_) Ownable(msg.sender) {
         require(priceFeed_ != address(0), "zero priceFeed");
         require(grid_      != address(0), "zero grid");
+        require(gdUSD_     != address(0), "zero gdUSD");
         priceFeed = PriceFeed(priceFeed_);
         grid      = xStocksGrid(grid_);
+        gdUSD     = GridToken(gdUSD_);
     }
 
     // ─── Admin ────────────────────────────────────────────────────────────────
@@ -143,8 +146,7 @@ contract xStockVault is Ownable, ReentrancyGuard {
         require(supportedTokens[token], "token not supported");
         require(amount > 0, "zero amount");
 
-        address gridToken = _gridToken(token);
-        uint256 price     = _price(token);
+        uint256 price = _price(token);
 
         // collateralUsdc = amount(18dec) * price(6dec) / 1e18  →  usdc(6dec)
         uint256 collateralUsdc = (amount * price) / PRICE_SCALE;
@@ -160,7 +162,7 @@ contract xStockVault is Ownable, ReentrancyGuard {
         positions[msg.sender][token].collateral       += amount;
         positions[msg.sender][token].gridTokensMinted += gridTokensMinted;
 
-        GridToken(gridToken).mint(msg.sender, gridTokensMinted);
+        gdUSD.mint(msg.sender, gridTokensMinted);
 
         emit Staked(msg.sender, token, amount, gridTokensMinted);
     }
@@ -185,8 +187,6 @@ contract xStockVault is Ownable, ReentrancyGuard {
         require(pos.gridTokensMinted >= gridTokenAmount, "exceeds minted");
         require(pos.collateral > 0, "no collateral");
 
-        address gridToken = _gridToken(token);
-
         // Proportional collateral: collateralOut / collateral = gridTokensBurned / gridTokensMinted
         collateralOut = (gridTokenAmount * pos.collateral) / pos.gridTokensMinted;
         require(collateralOut > 0, "rounds to zero");
@@ -194,7 +194,7 @@ contract xStockVault is Ownable, ReentrancyGuard {
         pos.gridTokensMinted -= gridTokenAmount;
         pos.collateral       -= collateralOut;
 
-        GridToken(gridToken).burn(msg.sender, gridTokenAmount);
+        gdUSD.burn(msg.sender, gridTokenAmount);
         IERC20(token).safeTransfer(msg.sender, collateralOut);
 
         emit Unstaked(msg.sender, token, collateralOut, gridTokenAmount);
@@ -213,9 +213,8 @@ contract xStockVault is Ownable, ReentrancyGuard {
         require(pos.gridTokensMinted > 0, "no position");
         require(!_isHealthy(user, token),  "position is healthy");
 
-        address gridToken = _gridToken(token);
-        uint256 debt      = pos.gridTokensMinted;       // GridTokens to repay (18 dec)
-        uint256 price     = _price(token);
+        uint256 debt  = pos.gridTokensMinted;       // GridTokens to repay (18 dec)
+        uint256 price = _price(token);
 
         // Collateral tokens equivalent to the debt value + 5% bonus
         // debtUsdc = debt(18dec) / GT_TO_USDC → usdc(6dec)
@@ -229,7 +228,7 @@ contract xStockVault is Ownable, ReentrancyGuard {
         pos.gridTokensMinted = 0;
         pos.collateral      -= seize;
 
-        GridToken(gridToken).burn(msg.sender, debt);
+        gdUSD.burn(msg.sender, debt);
         IERC20(token).safeTransfer(msg.sender, seize);
 
         emit Liquidated(user, token, msg.sender, seize, debt);
@@ -279,13 +278,6 @@ contract xStockVault is Ownable, ReentrancyGuard {
     function _price(address token) internal view returns (uint256 price) {
         price = priceFeed.latestPrice(token);
         require(price > 0, "xStockVault: price not available");
-    }
-
-    function _gridToken(address token) internal view returns (address) {
-        xStocksGrid.TokenConfig memory cfg = grid.getTokenConfig(token);
-        require(cfg.active,                  "token not configured on grid");
-        require(cfg.gridToken != address(0), "no gridToken for this stock");
-        return cfg.gridToken;
     }
 
     function _isHealthy(address user, address token) internal view returns (bool) {
