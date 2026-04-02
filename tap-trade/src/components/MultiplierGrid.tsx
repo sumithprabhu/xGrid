@@ -218,7 +218,7 @@ export function MultiplierGrid({
             >
               {visibleCols.map(({ g, stepsAhead, isPast, isNow, canBet }) => {
                 const timeBuckets = Math.max(1, Math.abs(stepsAhead));
-                const mult = calculateMultiplier(absRow, timeBuckets, houseEdgeBps);
+                const mult = calculateMultiplier(absRow, timeBuckets, houseEdgeBps, token.volatility, tickSize, currentPrice);
 
                 const bet = cellBets.get(`${signedRow}:${g}`);
                 const state = bet?.status;

@@ -32,7 +32,7 @@ export function useBets(
       if (size > balance) return;
 
       const absRow = Math.abs(signedRow);
-      const mult = calculateMultiplier(absRow, stepsAhead, houseEdgeBps);
+      const mult = calculateMultiplier(absRow, stepsAhead, houseEdgeBps, token.volatility, tickSize, currentPrice);
       if (mult <= 0) return;
 
       const center = Math.round(currentPrice / tickSize) * tickSize;
