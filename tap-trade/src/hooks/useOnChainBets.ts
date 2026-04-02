@@ -14,6 +14,7 @@ import { CONTRACTS, ERC20_ABI, GRID_ABI } from "../lib/contracts";
 export function useOnChainBets(
   userAddress: Address | undefined,
   onBalanceChange: () => void,
+  onTxSent?: (hash: string) => void,
 ) {
   const config = useConfig();
   const { writeContractAsync } = useWriteContract();
@@ -87,14 +88,14 @@ export function useOnChainBets(
             args: [tokenAddress, ticks, buckets, amount],
           });
           console.log("[onChainBet] ✅ tx sent:", txHash);
-          // Refresh balance after bet lands
+          onTxSent?.(txHash);
           onBalanceChange();
         } catch (err) {
           console.error("[onChainBet] ❌ tx failed:", err);
         }
       })();
     },
-    [ensureApproval, writeContractAsync, userAddress, onBalanceChange],
+    [ensureApproval, writeContractAsync, userAddress, onBalanceChange, onTxSent],
   );
 
   return { placeBetOnChain, ensureApproval };

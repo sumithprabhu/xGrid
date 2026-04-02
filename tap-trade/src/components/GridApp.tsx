@@ -6,6 +6,7 @@ import { PriceChart } from "./PriceChart";
 import { MultiplierGrid } from "./MultiplierGrid";
 import { BetDock } from "./BetDock";
 import { BetToast, type ToastPayload } from "./BetToast";
+import { TxToast } from "./TxToast";
 import { usePriceEngine } from "../hooks/usePriceEngine";
 import { useBets } from "../hooks/useBets";
 import { useSnakeTrail } from "../hooks/useSnakeTrail";
@@ -23,6 +24,7 @@ export function GridApp() {
   const [selectedToken, setSelectedToken] = useState(TOKENS[0]);
   const [betSize, setBetSize] = useState<BetSize>(10);
   const [toast, setToast] = useState<ToastPayload | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
   const betStatusRef = useRef<Map<string, string>>(new Map());
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,7 +43,8 @@ export function GridApp() {
   // ── On-chain data ─────────────────────────────────────────────────────────
   const { address } = useAccount();
   const { formatted: gdUsdBalance, refetch: refetchBalance } = useGdUsdBalance(address);
-  const { placeBetOnChain, ensureApproval } = useOnChainBets(address, refetchBalance);
+  const onTxSent = useCallback((h: string) => setTxHash(h), []);
+  const { placeBetOnChain, ensureApproval } = useOnChainBets(address, refetchBalance, onTxSent);
   const { matrix: contractMatrix } = useGridMatrix(selectedToken.contractAddress);
 
   // Pre-warm approval as soon as the user lands on the grid
@@ -190,6 +193,7 @@ export function GridApp() {
 
         <BetDock betSize={betSize} onBetSizeChange={setBetSize} />
         <BetToast toast={toast} onDismiss={dismissToast} />
+        <TxToast hash={txHash} />
       </div>
     </motion.div>
   );
