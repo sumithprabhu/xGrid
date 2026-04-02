@@ -12,7 +12,7 @@ import type { SnakeSegment } from "../hooks/useSnakeTrail";
 import { maxStepsAhead } from "../hooks/useSnakeTrail";
 import { SNAKE_COLUMN_HIT_LAG, GRID_TIME_HORIZONS_SEC } from "../lib/constants";
 import { calculateMultiplier } from "../lib/multiplier";
-import { formatMult, formatUsd, formatPnl } from "../lib/format";
+import { formatMult, formatUsd } from "../lib/format";
 import { formatHorizonLabel } from "../lib/gridHorizons";
 
 interface Props {
@@ -25,6 +25,8 @@ interface Props {
   anchorX: number;
   onCellClick: (row: number, globalCol: number) => void;
   onSnakeHitBet?: (bet: Bet) => void;
+  /** Called every render with the exact dot Y pixel so PriceChart can match */
+  onDotY?: (y: number) => void;
 }
 
 export function MultiplierGrid({
@@ -36,6 +38,7 @@ export function MultiplierGrid({
   anchorX,
   onCellClick,
   onSnakeHitBet,
+  onDotY,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cW, setCW] = useState(1200);
@@ -100,6 +103,10 @@ export function MultiplierGrid({
     }
     return best;
   }, [currentPrice, rowData]);
+
+  // Report exact dot Y to parent
+  const dotY = headerH + activeRowIdx * rowH + rowH / 2;
+  useEffect(() => { onDotY?.(dotY); }, [dotY, onDotY]);
 
   // Visible columns
   const leftBuf = Math.ceil(anchorX / cellW) + 2;
@@ -194,7 +201,7 @@ export function MultiplierGrid({
         </div>
 
         {/* Grid rows */}
-        {rowData.map(({ signedRow, absRow }, ri) => {
+        {rowData.map(({ signedRow, absRow, price: rowPrice }, ri) => {
           const isActive = ri === activeRowIdx;
           const top = headerH + ri * rowH;
 
@@ -331,7 +338,11 @@ export function MultiplierGrid({
                                   state === "lost" ? "line-through" : "none",
                               }}
                             >
-                              {state === "won" ? formatPnl(bet.pnl) : formatUsd(bet.amount)}
+                              {state === "won"
+                                ? `+${formatUsd(bet.amount * bet.multiplier)}`
+                                : state === "lost"
+                                  ? `-${formatUsd(bet.amount)}`
+                                  : formatUsd(bet.amount * bet.multiplier)}
                             </div>
                             <div
                               className="bet-card-mult"
@@ -343,6 +354,9 @@ export function MultiplierGrid({
                               }}
                             >
                               {formatMult(bet.multiplier)}
+                              <span style={{ opacity: 0.5, marginLeft: 4 }}>
+                                @{rowPrice.toFixed(2)}
+                              </span>
                             </div>
                           </div>
                         </motion.div>
@@ -363,18 +377,111 @@ export function MultiplierGrid({
         })}
       </motion.div>
 
-      {/* Active row highlight (fixed, doesn't scroll) */}
+      {/* Active row highlight + head dot + cursor (all in one div = perfect alignment) */}
       <div
-        className="absolute left-0 right-0 pointer-events-none z-30"
+        className="absolute left-0 right-0 pointer-events-none z-50"
         style={{
           top: headerH + activeRowIdx * rowH,
           height: rowH,
-          background: "rgba(255,59,141,0.035)",
-          borderTop: "1px solid rgba(255,59,141,0.07)",
-          borderBottom: "1px solid rgba(255,59,141,0.07)",
-          transition: "top 0.45s cubic-bezier(0.22,1,0.36,1)",
+          transition: "top 0.35s cubic-bezier(0.22,1,0.36,1)",
         }}
-      />
+      >
+        {/* Row band */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "rgba(255,59,141,0.035)",
+            borderTop: "1px solid rgba(255,59,141,0.07)",
+            borderBottom: "1px solid rgba(255,59,141,0.07)",
+          }}
+        />
+        {/* Horizontal cursor line (full width, vertically centered in row) */}
+        <div
+          className="absolute left-0 right-0"
+          style={{
+            top: "50%",
+            height: 1,
+            transform: "translateY(-50%)",
+            background: `linear-gradient(to right,
+              transparent 0%,
+              rgba(255,59,141,0.03) 15%,
+              rgba(255,59,141,0.08) 23%,
+              rgba(255,255,255,0.3) 36%,
+              rgba(255,255,255,0.2) 39%,
+              rgba(255,59,141,0.08) 46%,
+              rgba(255,59,141,0.03) 63%,
+              transparent 100%
+            )`,
+          }}
+        />
+        {/* Glowing head dot (vertically centered in row via top:50%) */}
+        <div
+          className="absolute"
+          style={{
+            left: anchorX,
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          <div
+            className="absolute rounded-full head-dot-pulse"
+            style={{
+              inset: -18,
+              background: "radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,59,141,0.06) 40%, transparent 70%)",
+            }}
+          />
+          <div
+            className="absolute rounded-full"
+            style={{ inset: -8, background: "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)" }}
+          />
+          <div
+            className="rounded-full"
+            style={{
+              width: 9,
+              height: 9,
+              background: "#fff",
+              boxShadow: "0 0 14px rgba(255,255,255,0.8), 0 0 28px rgba(255,59,141,0.3)",
+              border: "1px solid rgba(255,255,255,0.6)",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Fixed price labels (left edge) */}
+      <div
+        className="absolute left-0 z-30 pointer-events-none"
+        style={{ top: headerH, width: 52, height: cH - headerH }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(to right, rgba(10,14,26,0.92) 60%, transparent 100%)",
+          }}
+        />
+        {rowData.map(({ price }, ri) => (
+          <div
+            key={ri}
+            className="absolute left-0 right-0 flex items-center justify-end pr-1.5"
+            style={{
+              top: ri * rowH,
+              height: rowH,
+              color:
+                ri === activeRowIdx
+                  ? "#ff3b8d"
+                  : "rgba(255,255,255,0.25)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "9.5px",
+              fontWeight: ri === activeRowIdx ? 600 : 400,
+              fontVariantNumeric: "tabular-nums",
+              transition: "color 0.3s ease",
+            }}
+          >
+            {price.toFixed(2)}
+          </div>
+        ))}
+      </div>
+
+      {/* Head dot + cursor are now inside the active row highlight div above */}
     </div>
   );
 }

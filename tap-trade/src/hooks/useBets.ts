@@ -9,7 +9,8 @@ let betSeq = 0;
 export function useBets(
   token: TokenConfig,
   currentPrice: number,
-  head: SnakeSegment
+  head: SnakeSegment,
+  trail: SnakeSegment[] = []
 ) {
   const [bets, setBets] = useState<Bet[]>([]);
   const [balance, setBalance] = useState(INITIAL_BALANCE);
@@ -58,11 +59,18 @@ export function useBets(
     [token, currentPrice, balance]
   );
 
-  // Resolve bets as snake advances (column-based, not time-based)
+  // Resolve bets as snake advances (column-based, not time-based).
+  // Use trail data to get the row the snake was on WHEN it crossed the
+  // target column — head.signedRow may have moved since then.
   useEffect(() => {
     const effectiveCol = Math.floor(
       Math.max(0, head.globalPhase - SNAKE_COLUMN_HIT_LAG)
     );
+
+    // Build lookup: column → row the snake occupied at that moment
+    const rowAtCol = new Map<number, number>();
+    for (const seg of trail) rowAtCol.set(seg.globalCol, seg.signedRow);
+    rowAtCol.set(head.globalCol, head.signedRow);
 
     setBets((prev) => {
       let changed = false;
@@ -71,7 +79,8 @@ export function useBets(
         if (effectiveCol < b.targetCol) return b;
 
         changed = true;
-        const won = head.signedRow === b.row;
+        const snakeRow = rowAtCol.get(b.targetCol) ?? head.signedRow;
+        const won = snakeRow === b.row;
         const pnl = won ? b.amount * b.multiplier - b.amount : -b.amount;
         return {
           ...b,
@@ -93,7 +102,7 @@ export function useBets(
 
       return next;
     });
-  }, [head]);
+  }, [head, trail]);
 
   // Clean up old resolved bets
   useEffect(() => {

@@ -36,7 +36,7 @@ export function GridApp() {
 
   const { currentPrice, history } = usePriceEngine(selectedToken);
   const { head, trail } = useSnakeTrail(selectedToken, currentPrice);
-  const { bets, balance, placeBet } = useBets(selectedToken, currentPrice, head);
+  const { bets, balance, placeBet } = useBets(selectedToken, currentPrice, head, trail);
 
   const dismissToast = useCallback(() => setToast(null), []);
 
@@ -72,18 +72,7 @@ export function GridApp() {
   );
 
   const anchorX = Math.floor(dims.w * ANCHOR_FRAC);
-
-  // Head dot Y — same stable range as PriceChart so dot aligns with line end
-  const headerH = 26;
-  const chartH = dims.h - headerH;
-  const prices = history.map((p) => p.value);
-  const dataMin = prices.length > 0 ? Math.min(...prices) : currentPrice;
-  const dataMax = prices.length > 0 ? Math.max(...prices) : currentPrice;
-  const dataRange = Math.max(dataMax - dataMin, selectedToken.tickSize * 4);
-  const pad = dataRange * 0.25;
-  const yMin = dataMin - pad;
-  const yMax = dataMax + pad;
-  const headDotY = headerH + ((yMax - currentPrice) / (yMax - yMin)) * chartH;
+  const [dotY, setDotY] = useState(0);
 
   return (
     <motion.div
@@ -113,9 +102,10 @@ export function GridApp() {
           anchorX={anchorX}
           onCellClick={handleCellClick}
           onSnakeHitBet={onSnakeHitBet}
+          onDotY={setDotY}
         />
 
-        {/* LAYER 2: Price chart canvas overlay */}
+        {/* LAYER 2: Price chart canvas overlay — uses dotY from grid for exact alignment */}
         <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
           <PriceChart
             history={history}
@@ -124,71 +114,12 @@ export function GridApp() {
             width={dims.w}
             height={dims.h}
             anchorX={anchorX}
+            dotY={dotY}
           />
         </div>
 
-        {/* LAYER 3: Head dot + horizontal cursor line */}
-        <div className="absolute inset-0 pointer-events-none z-50">
-          {/* Horizontal cursor line across full width */}
-          <div
-            className="absolute h-px"
-            style={{
-              left: 0,
-              top: headDotY,
-              width: dims.w,
-              background: `linear-gradient(to right,
-                transparent 0%,
-                rgba(255,59,141,0.03) 15%,
-                rgba(255,59,141,0.08) ${(ANCHOR_FRAC * 60).toFixed(0)}%,
-                rgba(255,255,255,0.3) ${(ANCHOR_FRAC * 100 - 2).toFixed(0)}%,
-                rgba(255,255,255,0.2) ${(ANCHOR_FRAC * 100 + 1).toFixed(0)}%,
-                rgba(255,59,141,0.08) ${(ANCHOR_FRAC * 100 + 8).toFixed(0)}%,
-                rgba(255,59,141,0.03) ${(ANCHOR_FRAC * 100 + 25).toFixed(0)}%,
-                transparent 100%
-              )`,
-              transition: "top 0.35s cubic-bezier(0.22,1,0.36,1)",
-            }}
-          />
-
-          {/* Glowing head dot */}
-          <div
-            className="absolute"
-            style={{
-              left: anchorX,
-              top: headDotY,
-              transform: "translate(-50%, -50%)",
-              transition: "top 0.35s cubic-bezier(0.22,1,0.36,1)",
-            }}
-          >
-            <div
-              className="absolute rounded-full head-dot-pulse"
-              style={{
-                inset: -18,
-                background:
-                  "radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,59,141,0.06) 40%, transparent 70%)",
-              }}
-            />
-            <div
-              className="absolute rounded-full"
-              style={{
-                inset: -8,
-                background:
-                  "radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%)",
-              }}
-            />
-            <div
-              className="rounded-full"
-              style={{
-                width: 9,
-                height: 9,
-                background: "#fff",
-                boxShadow:
-                  "0 0 14px rgba(255,255,255,0.8), 0 0 28px rgba(255,59,141,0.3)",
-                border: "1px solid rgba(255,255,255,0.6)",
-              }}
-            />
-          </div>
-        </div>
+        {/* Head dot + cursor line are rendered INSIDE MultiplierGrid (z-50)
+            so they share the exact same rowH / activeRowIdx coordinates. */}
 
         {/* Controls */}
         <BetDock betSize={betSize} onBetSizeChange={setBetSize} />

@@ -47,12 +47,25 @@ export function useSnakeTrail(token: TokenConfig, currentPrice: number) {
       const globalPhase = elapsed / colMs;
       const globalCol = Math.floor(globalPhase);
 
+      // Find the closest ACTUAL grid row to the current price.
+      // Grid rows have signedRow ∈ {±1, ±2, …, ±gridHalfHeight} — there is
+      // no row at signedRow=0, so we must snap to the nearest valid row.
       const center = Math.round(currentPrice / tickSize) * tickSize;
-      const offset = Math.round((currentPrice - center) / tickSize);
-      const signedRow = Math.max(
-        -gridHalfHeight + 1,
-        Math.min(gridHalfHeight, offset)
-      );
+      const totalRows = gridHalfHeight * 2;
+      let signedRow = 1;
+      let minD = Infinity;
+      for (let ri = 0; ri < totalRows; ri++) {
+        const sr =
+          ri < gridHalfHeight
+            ? gridHalfHeight - ri
+            : -(ri - gridHalfHeight + 1);
+        const rowPrice = center + sr * tickSize;
+        const d = Math.abs(currentPrice - rowPrice);
+        if (d < minD) {
+          minD = d;
+          signedRow = sr;
+        }
+      }
 
       const seg: SnakeSegment = { signedRow, globalCol, globalPhase };
 

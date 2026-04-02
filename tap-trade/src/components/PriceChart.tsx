@@ -8,13 +8,15 @@ interface Props {
   width: number;
   height: number;
   anchorX: number;
+  /** Exact Y pixel from MultiplierGrid's row system — chart line ends here */
+  dotY: number;
 }
 
 /**
  * Transparent canvas overlay — draws price line from x=0 to x=anchorX.
  * No background fill; grid shows through underneath.
  */
-export function PriceChart({ history, token, width, height, anchorX }: Props) {
+export function PriceChart({ history, currentPrice, token, width, height, anchorX, dotY }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -31,13 +33,11 @@ export function PriceChart({ history, token, width, height, anchorX }: Props) {
     const headerH = 26;
     const chartH = height - headerH;
 
-    const prices = history.map((p) => p.value);
-    const dataMin = Math.min(...prices);
-    const dataMax = Math.max(...prices);
-    const dataRange = Math.max(dataMax - dataMin, token.tickSize * 4);
-    const pad = dataRange * 0.25;
-    const yMin = dataMin - pad;
-    const yMax = dataMax + pad;
+    // Y-axis aligned to the GRID row system — same center as head dot + grid.
+    const center = Math.round(currentPrice / token.tickSize) * token.tickSize;
+    const halfRange = token.gridHalfHeight * token.tickSize;
+    const yMax = center + halfRange + token.tickSize * 0.5;
+    const yMin = center - halfRange - token.tickSize * 0.5;
 
     const priceToY = (price: number) =>
       headerH + ((yMax - price) / (yMax - yMin)) * chartH;
@@ -80,8 +80,12 @@ export function PriceChart({ history, token, width, height, anchorX }: Props) {
       }
     }
 
-    // Map points
-    const points = history.map((p, i) => ({ x: toX(i), y: priceToY(p.value) }));
+    // Map points — last point forced to dotY (from MultiplierGrid) so line
+    // meets the head dot at the exact same pixel.
+    const points = history.map((p, i) => ({
+      x: toX(i),
+      y: i === history.length - 1 && dotY > 0 ? dotY : priceToY(p.value),
+    }));
 
     // Area fill
     ctx.beginPath();
@@ -135,7 +139,7 @@ export function PriceChart({ history, token, width, height, anchorX }: Props) {
     ctx.beginPath();
     ctx.arc(headX, headY, 18, 0, Math.PI * 2);
     ctx.fill();
-  }, [history, token, width, height, anchorX]);
+  }, [history, currentPrice, token, width, height, anchorX, dotY]);
 
   return (
     <canvas
